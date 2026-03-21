@@ -74,6 +74,14 @@ $dnsIssueActive = $false
 $outageStartTime = $null
 
 ## =========================================
+## SUMMARY TRACKING
+## =========================================
+$totalOutages = 0
+$totalPacketLossEvents = 0
+$longestOutage = [timespan]::Zero
+$outageEvents = @()
+
+## =========================================
 ## FUNCTION: TEST TARGET (PING PARSER)
 ## =========================================
 
@@ -147,23 +155,23 @@ function Write-EventLine {
         Write-Host "🚨 INTERNET LOSS DETECTED - $eventTime" -ForegroundColor Red
     }
     elseif ($Message -like "*INTERNET RESTORED*") {
-    Add-Content -Path $logFile -Value ""
-    Add-Content -Path $logFile -Value "=================================================="
-    Add-Content -Path $logFile -Value "✅ INTERNET RESTORED - $eventTime"
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value "✅ INTERNET RESTORED - $eventTime"
 
-    if ($Message -match "Outage lasted (.+)\)") {
-        Add-Content -Path $logFile -Value "Outage Duration: $($matches[1])"
+        if ($Message -match "Outage lasted (.+)\)") {
+            Add-Content -Path $logFile -Value "Outage Duration: $($matches[1])"
+        }
+
+        Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
+        if ($Message -match "Outage lasted (.+)\)") {
+            Write-Host "Outage Duration: $($matches[1])" -ForegroundColor Green
+        }
     }
-
-    Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
-    Add-Content -Path $logFile -Value "=================================================="
-    Add-Content -Path $logFile -Value ""
-
-    Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
-    if ($Message -match "Outage lasted (.+)\)") {
-        Write-Host "Outage Duration: $($matches[1])" -ForegroundColor Green
-    }
-}
     elseif ($Message -like "*DNS ISSUE DETECTED*") {
         Add-Content -Path $logFile -Value ""
         Add-Content -Path $logFile -Value "--------------------------------------------------"
@@ -249,6 +257,59 @@ function Run-TraceRouteSnapshot {
     }
     Add-Content -Path $LogFile -Value "===== TRACEROUTE END ====="
     Add-Content -Path $LogFile -Value ""
+
+    ## ======================================
+    ## FUNCTION: DAILY SUMMARY
+    ## ======================================
+
+    function Show-DailySummary {
+
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "========== NETWORK EVENT SUMMARY =========="
+        Add-Content -Path $logFile -Value "Total Outages: $totalOutages"
+        Add-Content -Path $logFile -Value "Packet Loss Events: $totalPacketLossEvents"
+
+        Write-Host ""
+        Write-Host "========== NETWORK EVENT SUMMARY ==========" -ForegroundColor Cyan
+        Write-Host "Total Outages: $totalOutages" -ForegroundColor White
+        Write-Host "Packet Loss Events: $totalPacketLossEvents" -ForegroundColor White
+
+        if ($longestOutage -ne [TimeSpan]::Zero) {
+            $longestText = "{0:hh\:mm\:ss}" -f $longestOutage
+
+            Add-Content -Path $logFile -Value "Longest Outage: $longestText"
+            Write-Host "Longest Outage: $longestText" -ForegroundColor Yellow
+        }
+        else {
+            Add-Content -Path $logFile -Value "Longest Outage: None"
+            Write-Host "Longest Outage: None" -ForegroundColor DarkGray
+        }
+
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host ""
+
+        if ($outageEvents.Count -gt 0) {
+            Add-Content -Path $logFile -Value "Outage Breakdown:"
+            Write-Host "Outage Breakdown:" -ForegroundColor Magenta
+
+            foreach ($event in $outageEvents) {
+                $durationText = "{0:hh\:mm\:ss}" -f $event.Duration
+                $line = " - $($event.Start) -> $($event.End) | Duration: $durationText"
+
+                Add-Content -Path $logFile -Value $line
+                Write-Host $line -ForegroundColor White
+            }
+        }
+        else {
+            Add-Content -Path $logFile -Value "Outage Breakdown: None"
+            Write-Host "Outage Breakdown: None" -ForegroundColor DarkGray
+        }
+
+        Add-Content -Path $logFile -Value "==========================================="
+        Write-Host "===========================================" -ForegroundColor Cyan
+        Write-Host ""
+    }
 
     ## -----------------------------------------
     ## Build hop objects from traceroute output
@@ -504,22 +565,41 @@ try {
         if ($netStatus -eq "LOST" -and -not $internetWasDown) {
             $outageStartTime = Get-Date
             $internetWasDown = $true
-            
+
             Write-EventLine "INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
             Run-TraceRouteSnapshot -Target $internet -LogFile $logFile -MaxHopsToTest $maxTraceHopsToTest -HopPingCount $hopPingCount
             
         }
         elseif ($netStatus -eq "OK" -and $internetWasDown) {
+
             $outageDuration = if ($outageStartTime) {
                 New-TimeSpan -Start $outageStartTime -End (Get-Date)
-            } else {
+            }
+            else {
                 $null
             }
 
             if ($outageDuration) {
+
+                # Track outage count
+                $totalOutages++
+
+                # Track longest outage
+                if ($outageDuration -gt $longestOutage) {
+                    $longestOutage = $outageDuration
+                }
+
+                # Store outage event
+                $outageEvents += [PSCustomObject]@{
+                    Start    = $outageStartTime
+                    End      = Get-Date
+                    Duration = $outageDuration
+                }
+
                 $durationText = "{0:hh\:mm\:ss}" -f $outageDuration
-                Write-EventLine "INTERNET RESTORED (Outage lasted $durationText)"
+                Write-EventLine "INTERNET RESTORED"
+                Write-Log "Outage Duration: $durationText" Yellow
             }
             else {
                 Write-EventLine "INTERNET RESTORED"
@@ -551,6 +631,7 @@ try {
 
         ## Packet Loss
         if ($netLiveLossPct -gt 0 -and -not $liveLossActive) {
+            $totalPacketLossEvents++
             Write-EventLine "LIVE PACKET LOSS DETECTED ($netLiveLossPct% over last $windowSize checks)"
             $liveLossActive = $true
         }
@@ -588,4 +669,6 @@ finally {
     Write-Host "Local    - Sent: $gwSent, Lost: $gwLost, Session Loss: $gwLossPctFinal%"
     Write-Host "Internet - Sent: $netSent, Lost: $netLost, Session Loss: $netLossPctFinal%"
     Write-Host "Log saved to: $logFile" -ForegroundColor Cyan
+
+    Show-DailySummary
 }
