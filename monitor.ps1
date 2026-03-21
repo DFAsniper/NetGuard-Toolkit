@@ -2,7 +2,11 @@
 ## CONFIGURATION
 ## =========================================
 
-# Detect default gateway automatically
+## Device Info
+$deviceName = $env:COMPUTERNAME
+$userName = $env:USERNAME
+
+## Detect default gateway automatically
 $gateway = (Get-NetRoute -AddressFamily IPv4 |
     Where-Object {
         $_.DestinationPrefix -eq '0.0.0.0/0' -and
@@ -11,7 +15,7 @@ $gateway = (Get-NetRoute -AddressFamily IPv4 |
     Sort-Object RouteMetric |
     Select-Object -First 1).NextHop
 
-# Safety check
+## Safety check
 if (-not $gateway) {
     Write-Host "❌ Could not detect gateway automatically." -ForegroundColor Red
     exit
@@ -80,6 +84,38 @@ $totalOutages = 0
 $totalPacketLossEvents = 0
 $longestOutage = [timespan]::Zero
 $outageEvents = @()
+
+## =========================================
+## NETWORK NAME DETECTION
+## =========================================
+
+$wifiSSID = $null
+$networkName = "Unknown Network"
+
+try {
+    $ssidLine = netsh wlan show interfaces | Select-String '^\s*SSID\s*:\s*'
+    if ($ssidLine) {
+        $wifiSSID = ($ssidLine -replace '^\s*SSID\s*:\s*', '').Trim()
+    }
+}
+catch {
+    $wifiSSID = $null
+}
+
+if ($wifiSSID -and $wifiSSID -ne "") {
+    $networkName = $wifiSSID
+}
+else {
+    try {
+        $profile = Get-NetConnectionProfile | Select-Object -First 1
+        if ($profile.Name) {
+            $networkName = $profile.Name
+        }
+    }
+    catch {
+        $networkName = "Unknown Network"
+    }
+}
 
 ## =========================================
 ## FUNCTION: TEST TARGET (PING PARSER)
@@ -389,6 +425,11 @@ Add-Content -Path $logFile -Value ""
 Add-Content -Path $logFile -Value "===== NEW SESSION START: $(Get-Date -Format 'HH:mm:ss') ====="
 Add-Content -Path $logFile -Value "----------------------------------------------------------------------------------------------------------------"
 
+Add-Content -Path $logFile -Value "Device: $deviceName"
+Add-Content -Path $logFile -Value "User: $userName"
+Add-Content -Path $logFile -Value "Network: $networkName"
+Add-Content -Path $logFile -Value "------------------------------------------------------------"
+
 Write-Host "Saving logs to: $logFile" -ForegroundColor Cyan
 
 ## =========================================
@@ -513,7 +554,7 @@ try {
             $outageStartTime = Get-Date
             $internetWasDown = $true
 
-            Write-EventLine "INTERNET LOSS DETECTED"
+            Write-EventLine "[$networkName] INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
             Run-TraceRouteSnapshot -Target $internet -LogFile $logFile -MaxHopsToTest $maxTraceHopsToTest -HopPingCount $hopPingCount
             
@@ -553,12 +594,12 @@ try {
                 }
 
                 $durationText = "{0:hh\:mm\:ss}" -f $outageDuration
-                Write-EventLine "INTERNET RESTORED"
+                Write-EventLine "[$networkName] INTERNET RESTORED"
                 Write-Host "Outage Duration: $durationText" -ForegroundColor Yellow
                 Add-Content -Path $logFile -Value "Outage Duration: $durationText"
             }
             else {
-                Write-EventLine "INTERNET RESTORED"
+                Write-EventLine "[$networkName] INTERNET RESTORED"
             }
 
             $outageStartTime = $null
@@ -567,11 +608,11 @@ try {
 
         ## DNS Issue
         if ($gwStatus -eq "OK" -and $netStatus -eq "OK" -and $dnsStatus -eq "LOST" -and -not $dnsIssueActive) {
-            Write-EventLine "DNS ISSUE DETECTED"
+            Write-EventLine "[$networkName] DNS ISSUE DETECTED"
             $dnsIssueActive = $true
         }
         elseif (($dnsStatus -eq "OK") -and $dnsIssueActive) {
-            Write-EventLine "DNS ISSUE CLEARED"
+            Write-EventLine "[$networkName] DNS ISSUE CLEARED"
             $dnsIssueActive = $false
         }
 
