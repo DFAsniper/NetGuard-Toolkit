@@ -537,16 +537,25 @@ try {
                     $longestOutage = $outageDuration
                 }
 
+                # Outage type
+                $type = "FULL OUTAGE"
+
+                if ($netLiveLossPct -gt 0) {
+                    $type = "PARTIAL OUTAGE"
+                }
+
                 # Store outage event
                 $outageEvents += [PSCustomObject]@{
                     Start    = $outageStartTime
                     End      = Get-Date
                     Duration = $outageDuration
+                    Type     = $type
                 }
 
                 $durationText = "{0:hh\:mm\:ss}" -f $outageDuration
                 Write-EventLine "INTERNET RESTORED"
-                Write-Log "Outage Duration: $durationText" Yellow
+                Write-Host "Outage Duration: $durationText" -ForegroundColor Yellow
+                Add-Content -Path $logFile -Value "Outage Duration: $durationText"
             }
             else {
                 Write-EventLine "INTERNET RESTORED"
@@ -598,15 +607,24 @@ try {
 finally {
 
     $endTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-
+    ## Final Loss %
     $gwLossPctFinal = if ($gwSent -gt 0) { [math]::Round(($gwLost / $gwSent) * 100, 2) } else { 0 }
     $netLossPctFinal = if ($netSent -gt 0) { [math]::Round(($netLost / $netSent) * 100, 2) } else { 0 }
+
+    ## Uptime %
+    
+    $gwUptimePct = [math]::Round(100 - $gwLossPctFinal, 2)
+    $netUptimePct = [math]::Round(100 - $netLossPctFinal, 2)
+
+    ## SESSION SUMMARY
 
     Add-Content -Path $logFile -Value ""
     Add-Content -Path $logFile -Value "===== SESSION END: $endTime ====="
     Add-Content -Path $logFile -Value "Session Summary:"
     Add-Content -Path $logFile -Value ("Local    - Sent: {0}, Lost: {1}, Session Loss: {2}%" -f $gwSent, $gwLost, $gwLossPctFinal)
+    Add-Content -Path $logFile -Value "Local Uptime: $gwUptimePct%"
     Add-Content -Path $logFile -Value ("Internet - Sent: {0}, Lost: {1}, Session Loss: {2}%" -f $netSent, $netLost, $netLossPctFinal)
+    Add-Content -Path $logFile -Value "Internet Uptime: $netUptimePct%"
     Add-Content -Path $logFile -Value ("Final Live Window Size: {0} checks" -f $windowSize)
     Add-Content -Path $logFile -Value "================================================================================================================"
 
@@ -614,9 +632,13 @@ finally {
     Write-Host "Session ended: $endTime" -ForegroundColor Cyan
     Write-Host "Session Summary:" -ForegroundColor Cyan
     Write-Host "Local    - Sent: $gwSent, Lost: $gwLost, Session Loss: $gwLossPctFinal%"
+    Write-Host "Local Uptime: $gwUptimePct%" -ForegroundColor White
     Write-Host "Internet - Sent: $netSent, Lost: $netLost, Session Loss: $netLossPctFinal%"
+    Write-Host "Internet Uptime: $netUptimePct%" -ForegroundColor White
     Write-Host "Log saved to: $logFile" -ForegroundColor Cyan
-    
+
+    ## NETWORK EVENT SUMMARY 
+
     Write-Host ""
     Write-Host "========== NETWORK EVENT SUMMARY ==========" -ForegroundColor Cyan
     Add-Content -Path $logFile -Value ""
@@ -647,7 +669,7 @@ finally {
 
         foreach ($outage in $outageEvents) {
             $durationText = "{0:hh\:mm\:ss}" -f $outage.Duration
-            $line = " - $($outage.Start) -> $($outage.End) | Duration: $durationText"
+            $line = " - $($outage.Start) -> $($outage.End) | Duration: $durationText | Type: $($outage.Type)"
             Write-Host $line -ForegroundColor White
             Add-Content -Path $logFile -Value $line
         }
