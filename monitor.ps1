@@ -662,6 +662,8 @@ finally {
     Add-Content -Path $logFile -Value ""
     Add-Content -Path $logFile -Value "===== SESSION END: $endTime ====="
     Add-Content -Path $logFile -Value "Session Summary:"
+    Add-Content -Path $logFile -Value "Network: $networkName"
+    Add-Content -Path $logFile -Value "Device: $deviceName"
     Add-Content -Path $logFile -Value ("Local    - Sent: {0}, Lost: {1}, Session Loss: {2}%" -f $gwSent, $gwLost, $gwLossPctFinal)
     Add-Content -Path $logFile -Value "Local Uptime: $gwUptimePct%"
     Add-Content -Path $logFile -Value ("Internet - Sent: {0}, Lost: {1}, Session Loss: {2}%" -f $netSent, $netLost, $netLossPctFinal)
@@ -672,6 +674,8 @@ finally {
     Write-Host ""
     Write-Host "Session ended: $endTime" -ForegroundColor Cyan
     Write-Host "Session Summary:" -ForegroundColor Cyan
+    Write-Host "Network: $networkName"
+    Write-Host "Device: $deviceName"
     Write-Host "Local    - Sent: $gwSent, Lost: $gwLost, Session Loss: $gwLossPctFinal%"
     Write-Host "Local Uptime: $gwUptimePct%" -ForegroundColor White
     Write-Host "Internet - Sent: $netSent, Lost: $netLost, Session Loss: $netLossPctFinal%"
