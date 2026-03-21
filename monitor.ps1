@@ -131,8 +131,30 @@ function Write-EventLine {
     $eventTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $eventLine = "***** $eventTime | $Message *****"
 
-    Add-Content -Path $logFile -Value $eventLine
-    Write-Host $eventLine -ForegroundColor Yellow
+    if ($Message -like "*INTERNET LOSS DETECTED*") {
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value "🚨 INTERNET LOSS DETECTED - $eventTime"
+        Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host "🚨 INTERNET LOSS DETECTED - $eventTime" -ForegroundColor Red
+    }
+    elseif ($Message -like "*INTERNET RESTORED*") {
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value "✅ INTERNET RESTORED - $eventTime"
+        Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
+        Add-Content -Path $logFile -Value "=================================================="
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
+    }
+    else {
+        Add-Content -Path $logFile -Value $eventLine
+        Write-Host $eventLine -ForegroundColor Yellow
+    }
 }
 
 ## =========================================
@@ -401,8 +423,6 @@ try {
         Write-Host "Session Loss %  : $netLossPct"
         Write-Host "Live Loss %     : $netLiveLossPct  (last $windowSize checks)"
         Write-Host ""
-
-        ## -------- DIAGNOSIS --------
 
         ## -------- DIAGNOSIS --------
 
