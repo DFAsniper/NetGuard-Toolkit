@@ -69,6 +69,7 @@ $internetWasDown = $false
 $highPingActive = $false
 $liveLossActive = $false
 $dnsIssueActive = $false
+$outageStartTime = $null
 
 ## =========================================
 ## FUNCTION: TEST TARGET (PING PARSER)
@@ -494,11 +495,26 @@ try {
             Write-EventLine "INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
             Run-TraceRouteSnapshot -Target $internet -LogFile $logFile -MaxHopsToTest $maxTraceHopsToTest -HopPingCount $hopPingCount
-
+            $outageStartTime = Get-Date
             $internetWasDown = $true
         }
         elseif ($netStatus -eq "OK" -and $internetWasDown) {
-            Write-EventLine "INTERNET RESTORED"
+            $outageDuration = if ($outageStartTime) {
+                New-TimeSpan -Start $outageStartTime -End (Get-Date)
+            }
+            else {
+                $null
+            }
+
+            if ($outageDuration) {
+                $durationText = "{0:mm\:ss}" -f $outageDuration
+                Write-EventLine "INTERNET RESTORED (Outage lasted $durationText)"
+            }
+            else {
+                Write-EventLine "INTERNET RESTORED"
+            }
+
+            $outageStartTime = $null
             $internetWasDown = $false
         }
 
