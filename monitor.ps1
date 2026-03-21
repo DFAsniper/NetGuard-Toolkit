@@ -20,6 +20,7 @@ if (-not $gateway) {
 Write-Host "🌐 Detected Gateway: $gateway" -ForegroundColor Cyan
 
 $internet = "8.8.8.8"
+$dnsTest = "google.com"
 
 $logFolder = "$env:USERPROFILE\Desktop\NetworkMonitorLogs"
 
@@ -67,6 +68,7 @@ $netRecentResults = @()
 $internetWasDown = $false
 $highPingActive = $false
 $liveLossActive = $false
+$dnsIssueActive = $false
 
 ## =========================================
 ## FUNCTION: TEST TARGET (PING PARSER)
@@ -150,6 +152,26 @@ function Write-EventLine {
         Add-Content -Path $logFile -Value ""
 
         Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
+    }
+    elseif ($Message -like "*DNS ISSUE DETECTED*") {
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "--------------------------------------------------"
+        Add-Content -Path $logFile -Value "🌍 DNS ISSUE DETECTED - $eventTime"
+        Add-Content -Path $logFile -Value "Internet is reachable, but domain resolution failed"
+        Add-Content -Path $logFile -Value "--------------------------------------------------"
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host "🌍 DNS ISSUE DETECTED - $eventTime" -ForegroundColor Yellow
+    }
+    elseif ($Message -like "*DNS ISSUE CLEARED*") {
+        Add-Content -Path $logFile -Value ""
+        Add-Content -Path $logFile -Value "--------------------------------------------------"
+        Add-Content -Path $logFile -Value "✅ DNS ISSUE CLEARED - $eventTime"
+        Add-Content -Path $logFile -Value "Domain resolution is working again"
+        Add-Content -Path $logFile -Value "--------------------------------------------------"
+        Add-Content -Path $logFile -Value ""
+
+        Write-Host "✅ DNS ISSUE CLEARED - $eventTime" -ForegroundColor Green
     }
     else {
         Add-Content -Path $logFile -Value $eventLine
@@ -383,6 +405,11 @@ try {
         $netRecentResults = Update-RollingWindow -History $netRecentResults -Value $netTest.Success -MaxSize $windowSize
 
         if ($netStatus -eq "LOST") { $netLost++ }
+        
+        ## -------- DNS TEST --------
+
+        $dnsTestResult = Test-Target -Target $dnsTest
+        $dnsStatus = $dnsTestResult.Status
 
         ## -------- CALCULATIONS --------
 
@@ -423,17 +450,26 @@ try {
         Write-Host "Session Loss %  : $netLossPct"
         Write-Host "Live Loss %     : $netLiveLossPct  (last $windowSize checks)"
         Write-Host ""
-
+       
+        Write-Host "DNS"
+        Write-Host "---"
+        Write-Host "Target          : $dnsTest"
+        Write-Host "Status          : $dnsStatus" -ForegroundColor (Get-StatusColor -Status $dnsStatus -PingMs $dnsTestResult.PingMs)
+        Write-Host "Ping            : $($dnsTestResult.Ping)" -ForegroundColor (Get-StatusColor -Status $dnsStatus -PingMs $dnsTestResult.PingMs)
+        Write-Host ""
         ## -------- DIAGNOSIS --------
 
-        if ($gwStatus -eq "OK" -and $netStatus -eq "LOST") {
-            Write-Host "🌐 ISP ISSUE: Your router is responding, but the internet is not." -ForegroundColor Yellow
-        }
-        elseif ($gwStatus -eq "LOST" -and $netStatus -eq "LOST") {
+        if ($gwStatus -eq "LOST") {
             Write-Host "❌ LOCAL ISSUE: Your router or local network is not responding." -ForegroundColor Red
         }
+        elseif ($gwStatus -eq "OK" -and $netStatus -eq "LOST") {
+            Write-Host "🌐 ISP ISSUE: Your internet provider is not responding." -ForegroundColor Yellow
+        }
+        elseif ($gwStatus -eq "OK" -and $netStatus -eq "OK" -and $dnsStatus -eq "LOST") {
+            Write-Host "🌍 DNS ISSUE: Internet is working, but domain names are not resolving." -ForegroundColor Yellow
+        }
         elseif ($gwStatus -eq "OK" -and $netStatus -eq "OK") {
-            Write-Host "✅ CONNECTION STABLE: Local network and internet are both responding." -ForegroundColor Green
+            Write-Host "✅ CONNECTION STABLE: Everything is working normally." -ForegroundColor Green
         }
         else {
             Write-Host "⚠️ MIXED RESULTS: Intermittent or unusual behavior detected." -ForegroundColor Yellow
@@ -452,7 +488,8 @@ try {
         Add-Content -Path $logFile -Value "----------------------------------------------------------------------------------------------------------------"
 
         ## -------- EVENT DETECTION --------
-
+        
+        ## Internet Lost and Restored
         if ($netStatus -eq "LOST" -and -not $internetWasDown) {
             Write-EventLine "INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
@@ -465,6 +502,17 @@ try {
             $internetWasDown = $false
         }
 
+        ## DNS Issue
+        if ($gwStatus -eq "OK" -and $netStatus -eq "OK" -and $dnsStatus -eq "LOST" -and -not $dnsIssueActive) {
+            Write-EventLine "DNS ISSUE DETECTED"
+            $dnsIssueActive = $true
+        }
+        elseif (($dnsStatus -eq "OK") -and $dnsIssueActive) {
+            Write-EventLine "DNS ISSUE CLEARED"
+            $dnsIssueActive = $false
+        }
+
+        ## High Ping
         if ($netStatus -eq "OK" -and $netPingMs -ge 100 -and -not $highPingActive) {
             Write-EventLine "HIGH INTERNET PING DETECTED ($netPingMs ms)"
             $highPingActive = $true
@@ -474,6 +522,7 @@ try {
             $highPingActive = $false
         }
 
+        ## Packet Loss
         if ($netLiveLossPct -gt 0 -and -not $liveLossActive) {
             Write-EventLine "LIVE PACKET LOSS DETECTED ($netLiveLossPct% over last $windowSize checks)"
             $liveLossActive = $true
