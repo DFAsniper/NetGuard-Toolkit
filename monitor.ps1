@@ -21,6 +21,8 @@ Write-Host "🌐 Detected Gateway: $gateway" -ForegroundColor Cyan
 
 $internet = "8.8.8.8"
 $dnsTest = "google.com"
+$maxTraceHopsToTest = 5
+$hopPingCount = 3
 
 $logFolder = "$env:USERPROFILE\Desktop\NetworkMonitorLogs"
 
