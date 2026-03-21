@@ -18,6 +18,8 @@ It focuses on identifying whether problems originate from your local network or 
 * Traceroute snapshots during outages
 * Hop-loss snapshot logging when internet drops
 * High latency and packet loss event logging
+* DNS testing
+* Outage timer
 
 ---
 
@@ -28,9 +30,18 @@ NetGuard Toolkit continuously monitors your connection and helps determine:
 * If your **router/local network** is down
 * If your **ISP is not responding**
 * If your connection is experiencing **high latency or packet loss**
+* DNS issues
 * When outages occur and how long they last
 
-Instead of just showing raw data, it provides simple output to help explain what’s happening.
+Instead of just showing raw data, it provides a simple output to help explain what’s happening.
+
+---
+
+## Color Legend
+* Green  | Normal / Stable                 
+* Yellow | Warning (latency / instability) 
+* Red    | Issue detected                  
+* Cyan   | Informational                   
 
 ---
 
@@ -42,8 +53,6 @@ Instead of just showing raw data, it provides simple output to help explain what
 
 ```
 
----
-
 ##  Logs
 
 Logs are automatically generated and saved daily. All you need todo is create a file on your desktop named "NetworkMonitorLogs"
@@ -54,6 +63,8 @@ They include:
 * Packet loss events
 * High latency events
 * Traceroute results during outages
+* Internet Lost with outage duration time
+* DNS issues
 
 ---
 
