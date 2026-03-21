@@ -502,11 +502,13 @@ try {
         
         ## Internet Lost, Restored, and Outage time
         if ($netStatus -eq "LOST" -and -not $internetWasDown) {
+            $outageStartTime = Get-Date
+            $internetWasDown = $true
+            
             Write-EventLine "INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
             Run-TraceRouteSnapshot -Target $internet -LogFile $logFile -MaxHopsToTest $maxTraceHopsToTest -HopPingCount $hopPingCount
-            $outageStartTime = Get-Date
-            $internetWasDown = $true
+            
         }
         elseif ($netStatus -eq "OK" -and $internetWasDown) {
             $outageDuration = if ($outageStartTime) {
