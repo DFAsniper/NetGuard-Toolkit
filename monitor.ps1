@@ -258,59 +258,6 @@ function Run-TraceRouteSnapshot {
     Add-Content -Path $LogFile -Value "===== TRACEROUTE END ====="
     Add-Content -Path $LogFile -Value ""
 
-    ## ======================================
-    ## FUNCTION: DAILY SUMMARY
-    ## ======================================
-
-    function Show-DailySummary {
-
-        Add-Content -Path $logFile -Value ""
-        Add-Content -Path $logFile -Value "========== NETWORK EVENT SUMMARY =========="
-        Add-Content -Path $logFile -Value "Total Outages: $totalOutages"
-        Add-Content -Path $logFile -Value "Packet Loss Events: $totalPacketLossEvents"
-
-        Write-Host ""
-        Write-Host "========== NETWORK EVENT SUMMARY ==========" -ForegroundColor Cyan
-        Write-Host "Total Outages: $totalOutages" -ForegroundColor White
-        Write-Host "Packet Loss Events: $totalPacketLossEvents" -ForegroundColor White
-
-        if ($longestOutage -ne [TimeSpan]::Zero) {
-            $longestText = "{0:hh\:mm\:ss}" -f $longestOutage
-
-            Add-Content -Path $logFile -Value "Longest Outage: $longestText"
-            Write-Host "Longest Outage: $longestText" -ForegroundColor Yellow
-        }
-        else {
-            Add-Content -Path $logFile -Value "Longest Outage: None"
-            Write-Host "Longest Outage: None" -ForegroundColor DarkGray
-        }
-
-        Add-Content -Path $logFile -Value ""
-
-        Write-Host ""
-
-        if ($outageEvents.Count -gt 0) {
-            Add-Content -Path $logFile -Value "Outage Breakdown:"
-            Write-Host "Outage Breakdown:" -ForegroundColor Magenta
-
-            foreach ($event in $outageEvents) {
-                $durationText = "{0:hh\:mm\:ss}" -f $event.Duration
-                $line = " - $($event.Start) -> $($event.End) | Duration: $durationText"
-
-                Add-Content -Path $logFile -Value $line
-                Write-Host $line -ForegroundColor White
-            }
-        }
-        else {
-            Add-Content -Path $logFile -Value "Outage Breakdown: None"
-            Write-Host "Outage Breakdown: None" -ForegroundColor DarkGray
-        }
-
-        Add-Content -Path $logFile -Value "==========================================="
-        Write-Host "===========================================" -ForegroundColor Cyan
-        Write-Host ""
-    }
-
     ## -----------------------------------------
     ## Build hop objects from traceroute output
     ## -----------------------------------------
@@ -669,6 +616,48 @@ finally {
     Write-Host "Local    - Sent: $gwSent, Lost: $gwLost, Session Loss: $gwLossPctFinal%"
     Write-Host "Internet - Sent: $netSent, Lost: $netLost, Session Loss: $netLossPctFinal%"
     Write-Host "Log saved to: $logFile" -ForegroundColor Cyan
+    
+    Write-Host ""
+    Write-Host "========== NETWORK EVENT SUMMARY ==========" -ForegroundColor Cyan
+    Add-Content -Path $logFile -Value ""
+    Add-Content -Path $logFile -Value "========== NETWORK EVENT SUMMARY =========="
 
-    Show-DailySummary
+    Write-Host "Total Outages: $totalOutages" -ForegroundColor White
+    Add-Content -Path $logFile -Value "Total Outages: $totalOutages"
+
+    Write-Host "Packet Loss Events: $totalPacketLossEvents" -ForegroundColor White
+    Add-Content -Path $logFile -Value "Packet Loss Events: $totalPacketLossEvents"
+
+    if ($longestOutage -ne [TimeSpan]::Zero) {
+        $longestText = "{0:hh\:mm\:ss}" -f $longestOutage
+        Write-Host "Longest Outage: $longestText" -ForegroundColor Yellow
+        Add-Content -Path $logFile -Value "Longest Outage: $longestText"
+    }
+    else {
+        Write-Host "Longest Outage: None" -ForegroundColor DarkGray
+        Add-Content -Path $logFile -Value "Longest Outage: None"
+    }
+
+    Write-Host ""
+    Add-Content -Path $logFile -Value ""
+
+    if ($outageEvents.Count -gt 0) {
+        Write-Host "Outage Breakdown:" -ForegroundColor Magenta
+        Add-Content -Path $logFile -Value "Outage Breakdown:"
+
+        foreach ($outage in $outageEvents) {
+            $durationText = "{0:hh\:mm\:ss}" -f $outage.Duration
+            $line = " - $($outage.Start) -> $($outage.End) | Duration: $durationText"
+            Write-Host $line -ForegroundColor White
+            Add-Content -Path $logFile -Value $line
+        }
+    }
+    else {
+        Write-Host "Outage Breakdown: None" -ForegroundColor DarkGray
+        Add-Content -Path $logFile -Value "Outage Breakdown: None"
+    }
+
+    Write-Host "===========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Add-Content -Path $logFile -Value "==========================================="
 }
