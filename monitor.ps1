@@ -107,9 +107,9 @@ if ($wifiSSID -and $wifiSSID -ne "") {
 }
 else {
     try {
-        $profile = Get-NetConnectionProfile | Select-Object -First 1
-        if ($profile.Name) {
-            $networkName = $profile.Name
+        $netprofile = Get-NetConnectionProfile | Select-Object -First 1
+        if ($netprofile.Name) {
+            $networkName = $netprofile.Name
         }
     }
     catch {

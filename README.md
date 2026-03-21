@@ -20,6 +20,11 @@ It focuses on identifying whether problems originate from your local network or 
 * High latency and packet loss event logging
 * DNS testing
 * Outage timer
+* Network name detection (Wi-Fi SSID or fallback profile name)
+* Device and user session metadata
+* Session uptime percentage summary
+* Network event summary
+* Outage breakdown with timestamps and durations
 
 ---
 
@@ -65,6 +70,11 @@ They include:
 * Traceroute results during outages
 * Internet Lost with outage duration time
 * DNS issues
+* Session start and end markers
+* Device, user, and connected network info
+* Session uptime summary
+* Network event summary
+* Outage breakdown with durations and outage type
 
 ---
 
@@ -72,6 +82,16 @@ They include:
 
 * Windows
 * PowerShell 7+ (Older versions may break the script or behave differently. If you test it on an older version and it works, feel free to share your results!)
+
+---
+
+## Recent Additions
+
+* Network-aware session headers
+* Device and user tracking in logs
+* Session uptime percentage reporting
+* Network event summary
+* Outage breakdown reporting
 
 ---
 
