@@ -490,7 +490,7 @@ try {
 
         ## -------- EVENT DETECTION --------
         
-        ## Internet Lost and Restored
+        ## Internet Lost, Restored, and Outage time
         if ($netStatus -eq "LOST" -and -not $internetWasDown) {
             Write-EventLine "INTERNET LOSS DETECTED"
             [console]::beep(1000, 400)
@@ -507,7 +507,7 @@ try {
             }
 
             if ($outageDuration) {
-                $durationText = "{0:mm\:ss}" -f $outageDuration
+                $durationText = "{0:hh\:mm\:ss}" -f $outageDuration
                 Write-EventLine "INTERNET RESTORED (Outage lasted $durationText)"
             }
             else {
