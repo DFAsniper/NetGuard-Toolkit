@@ -94,17 +94,17 @@ function Test-Target {
 
     if (-not $success) {
         return @{
-            Status = "LOST"
-            Ping   = "---"
-            PingMs = -1
+            Status  = "LOST"
+            Ping    = "---"
+            PingMs  = -1
             Success = 0
         }
     }
 
     return @{
-        Status = "OK"
-        Ping   = ("{0,3} ms" -f $pingMs)
-        PingMs = $pingMs
+        Status  = "OK"
+        Ping    = ("{0,3} ms" -f $pingMs)
+        PingMs  = $pingMs
         Success = 1
     }
 }
@@ -149,7 +149,7 @@ function Update-RollingWindow {
     $History += $Value
 
     if ($History.Count -gt $MaxSize) {
-        $History = $History[-$MaxSize..-1]
+        $History = $History[ - $MaxSize..-1]
     }
 
     return $History
@@ -208,9 +208,9 @@ function Run-TraceRouteSnapshot {
             ## Case 1: hop timed out / no IP found
             if ($line -match 'Request timed out') {
                 $hopEntries += [PSCustomObject]@{
-                    Hop    = $hopNumber
-                    IP     = "UNKNOWN"
-                    Type   = "TIMEOUT"
+                    Hop  = $hopNumber
+                    IP   = "UNKNOWN"
+                    Type = "TIMEOUT"
                 }
                 continue
             }
@@ -219,9 +219,9 @@ function Run-TraceRouteSnapshot {
             if ($line -match '(\d{1,3}(?:\.\d{1,3}){3})\s*$') {
                 $ip = $matches[1]
                 $hopEntries += [PSCustomObject]@{
-                    Hop    = $hopNumber
-                    IP     = $ip
-                    Type   = "IP"
+                    Hop  = $hopNumber
+                    IP   = $ip
+                    Type = "IP"
                 }
             }
         }
@@ -311,7 +311,7 @@ function Run-TraceRouteSnapshot {
 if (-not (Test-Path $logFile)) {
 
     "{0,-19} | {1,-8} | {2,-13} | {3,-6} | {4,-6} | {5,4} | {6,4} | {7,8} | {8,8}" -f `
-    "Timestamp","Target","IP Address","Status","Ping","Sent","Lost","Sess Loss %","Live Loss %" |
+        "Timestamp", "Target", "IP Address", "Status", "Ping", "Sent", "Lost", "Sess Loss %", "Live Loss %" |
     Out-File -FilePath $logFile -Encoding utf8
 
     "----------------------------------------------------------------------------------------------------------------" |
@@ -404,17 +404,19 @@ try {
 
         ## -------- DIAGNOSIS --------
 
+        ## -------- DIAGNOSIS --------
+
         if ($gwStatus -eq "OK" -and $netStatus -eq "LOST") {
-            Write-Host "Diagnosis: Internet issue (ISP side)" -ForegroundColor Yellow
+            Write-Host "🌐 ISP ISSUE: Your router is responding, but the internet is not." -ForegroundColor Yellow
         }
         elseif ($gwStatus -eq "LOST" -and $netStatus -eq "LOST") {
-            Write-Host "Diagnosis: Local network or router issue" -ForegroundColor Red
+            Write-Host "❌ LOCAL ISSUE: Your router or local network is not responding." -ForegroundColor Red
         }
         elseif ($gwStatus -eq "OK" -and $netStatus -eq "OK") {
-            Write-Host "Diagnosis: Everything normal" -ForegroundColor Green
+            Write-Host "✅ CONNECTION STABLE: Local network and internet are both responding." -ForegroundColor Green
         }
         else {
-            Write-Host "Diagnosis: Mixed behavior" -ForegroundColor Yellow
+            Write-Host "⚠️ MIXED RESULTS: Intermittent or unusual behavior detected." -ForegroundColor Yellow
         }
 
         ## -------- LOG WRITING --------
