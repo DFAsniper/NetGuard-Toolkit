@@ -145,15 +145,23 @@ function Write-EventLine {
         Write-Host "🚨 INTERNET LOSS DETECTED - $eventTime" -ForegroundColor Red
     }
     elseif ($Message -like "*INTERNET RESTORED*") {
-        Add-Content -Path $logFile -Value ""
-        Add-Content -Path $logFile -Value "=================================================="
-        Add-Content -Path $logFile -Value "✅ INTERNET RESTORED - $eventTime"
-        Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
-        Add-Content -Path $logFile -Value "=================================================="
-        Add-Content -Path $logFile -Value ""
+    Add-Content -Path $logFile -Value ""
+    Add-Content -Path $logFile -Value "=================================================="
+    Add-Content -Path $logFile -Value "✅ INTERNET RESTORED - $eventTime"
 
-        Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
+    if ($Message -match "Outage lasted (.+)\)") {
+        Add-Content -Path $logFile -Value "Outage Duration: $($matches[1])"
     }
+
+    Add-Content -Path $logFile -Value "Gateway: $gwStatus | Internet: $netStatus"
+    Add-Content -Path $logFile -Value "=================================================="
+    Add-Content -Path $logFile -Value ""
+
+    Write-Host "✅ INTERNET RESTORED - $eventTime" -ForegroundColor Green
+    if ($Message -match "Outage lasted (.+)\)") {
+        Write-Host "Outage Duration: $($matches[1])" -ForegroundColor Green
+    }
+}
     elseif ($Message -like "*DNS ISSUE DETECTED*") {
         Add-Content -Path $logFile -Value ""
         Add-Content -Path $logFile -Value "--------------------------------------------------"
@@ -501,8 +509,7 @@ try {
         elseif ($netStatus -eq "OK" -and $internetWasDown) {
             $outageDuration = if ($outageStartTime) {
                 New-TimeSpan -Start $outageStartTime -End (Get-Date)
-            }
-            else {
+            } else {
                 $null
             }
 
