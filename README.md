@@ -1,12 +1,12 @@
-# NetGuard Toolkit
+## NetGuard Toolkit
 
 NetGuard Toolkit is a PowerShell-based network monitoring and diagnostic tool designed to detect, log, and explain connectivity issues in real time.
 
-It focuses on identifying whether problems originate from your local network or your internet service provider (ISP), while keeping logs for later analysis.
+It focuses on diagnosing intermittent and hard-to-trace network issues by identifying whether problems originate from your local network or your internet service provider (ISP), while keeping logs for later analysis.
 
 ---
 
-##  Features
+## Features
 
 * Automatic default gateway detection
 * Local (gateway) and internet connectivity checks
@@ -26,19 +26,27 @@ It focuses on identifying whether problems originate from your local network or 
 * Network event summary
 * Outage breakdown with timestamps and durations
 
+### Advanced Diagnostics
+
+* First failing upstream hop detection
+* Upstream hop failure frequency tracking
+* Identification of recurring network failure points
+* Event-based hop analysis (per outage snapshot)
+
 ---
 
 ##  What It Does
 
 NetGuard Toolkit continuously monitors your connection and helps determine:
 
-* If your **router/local network** is down
-* If your **ISP is not responding**
-* If your connection is experiencing **high latency or packet loss**
+* If your router/local network is down
+* If your ISP is not responding
+* If your connection is experiencing high latency or packet loss
 * DNS issues
 * When outages occur and how long they last
+* Where failures are occurring in the network path (upstream hop analysis)
 
-Instead of just showing raw data, it provides a simple output to help explain what’s happening.
+Instead of just showing raw data, it provides clear, actionable insight into what’s happening and where issues originate.
 
 ---
 
@@ -60,7 +68,7 @@ Instead of just showing raw data, it provides a simple output to help explain wh
 
 ##  Logs
 
-Logs are automatically generated and saved daily. All you need todo is create a file on your desktop named "NetworkMonitorLogs"
+Logs are automatically generated and saved daily. All you need to do is create a file on your desktop named "NetworkMonitorLogs"
 
 They include:
 
@@ -92,6 +100,7 @@ They include:
 * Session uptime percentage reporting
 * Network event summary
 * Outage breakdown reporting
+* First failing upstream hop detection and frequency tracking
 
 ---
 
