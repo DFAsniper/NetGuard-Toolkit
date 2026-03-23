@@ -84,6 +84,7 @@ $totalOutages = 0
 $totalPacketLossEvents = 0
 $longestOutage = [timespan]::Zero
 $outageEvents = @()
+$FirstFailingHopCounts = @{}
 
 ## =========================================
 ## NETWORK NAME DETECTION
@@ -341,6 +342,7 @@ function Run-TraceRouteSnapshot {
     }
 
     $filteredHops = $filteredHops | Select-Object -First $MaxHopsToTest
+    $hopSnapshotLines = @()
 
     Add-Content -Path $LogFile -Value "===== HOP LOSS SNAPSHOT START ====="
 
@@ -356,6 +358,7 @@ function Run-TraceRouteSnapshot {
         ## If traceroute only gave us a timeout and no IP, log it as UNKNOWN
         if ($hop.Type -eq "TIMEOUT") {
             $lineOut = "Hop {0,-2} | {1,-15} | LOSS | Avg --- | Loss 100%" -f $hop.Hop, "UNKNOWN"
+            $hopSnapshotLines += $lineOut
             Add-Content -Path $LogFile -Value $lineOut
             continue
         }
@@ -396,11 +399,47 @@ function Run-TraceRouteSnapshot {
             $lineOut = "Hop {0,-2} | {1,-15} | LOSS | Avg --- | Loss 100%" -f $hop.Hop, $hop.IP
         }
 
+        $hopSnapshotLines += $lineOut
         Add-Content -Path $LogFile -Value $lineOut
     }
 
     Add-Content -Path $LogFile -Value "===== HOP LOSS SNAPSHOT END ====="
+    Update-FirstFailingHopCount -HopSnapshotLines $hopSnapshotLines -HopCounter $FirstFailingHopCounts
     Add-Content -Path $LogFile -Value ""
+    
+}
+
+## =========================================
+## FUNCTION: FIRST FAILING HOP COUNTER
+## =========================================
+
+function Update-FirstFailingHopCount {
+    param (
+        [array]$HopSnapshotLines,
+        [hashtable]$HopCounter
+    )
+
+    foreach ($line in $HopSnapshotLines) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+        if ($line -match '^Hop\s+(\d+)\s+\|\s+(.+?)\s+\|\s+(\w+)\s+\|') {
+            $hopNum = [int]$matches[1]
+            $hopIP = $matches[2].Trim()
+            $hopStatus = $matches[3].Trim().ToUpper()
+
+            if ($hopNum -le 1) { continue }
+            if ($hopIP -eq "UNKNOWN") { continue }
+
+            if ($hopStatus -in @("LOSS", "PART")) {
+                if (-not $HopCounter.ContainsKey($hopIP)) {
+                    $HopCounter[$hopIP] = 0
+                }
+
+                $HopCounter[$hopIP]++
+                break
+            }
+        }
+    }
 }
 
 ## =========================================
@@ -682,13 +721,13 @@ finally {
     Write-Host "Internet Uptime: $netUptimePct%" -ForegroundColor White
     Write-Host "Log saved to: $logFile" -ForegroundColor Cyan
 
-    ## NETWORK EVENT SUMMARY 
+    ## NETWORK EVENT SUMMARY  
 
     Write-Host ""
     Write-Host "========== NETWORK EVENT SUMMARY ==========" -ForegroundColor Cyan
     Add-Content -Path $logFile -Value ""
     Add-Content -Path $logFile -Value "========== NETWORK EVENT SUMMARY =========="
-
+    ## Outages summary
     Write-Host "Total Outages: $totalOutages" -ForegroundColor White
     Add-Content -Path $logFile -Value "Total Outages: $totalOutages"
 
@@ -705,8 +744,39 @@ finally {
         Add-Content -Path $logFile -Value "Longest Outage: None"
     }
 
+    ## First Failing Hop
+
+    if ($FirstFailingHopCounts.Count -gt 0) {
+        $topFailHop = $FirstFailingHopCounts.GetEnumerator() |
+          Sort-Object Value -Descending |
+          Select-Object -First 1
+
+        $hopLine = "Most Common First Failing Upstream Hop: {0} ({1} events)" -f $topFailHop.Key, $topFailHop.Value
+        Write-Host $hopLine -ForegroundColor Yellow
+        Add-Content -Path $logFile -Value $hopLine
+    }
+    else {
+        Write-Host "Most Common First Failing Upstream Hop: None captured" -ForegroundColor DarkGray
+        Add-Content -Path $logFile -Value "Most Common First Failing Upstream Hop: None captured"
+    }
+
+    if ($FirstFailingHopCounts.Count -gt 0) {
+        Write-Host "Failing Upstream Hop Frequency:" -ForegroundColor DarkCyan
+        Add-Content -Path $logFile -Value "Failing Upstream Hop Frequency:"
+
+        $FirstFailingHopCounts.GetEnumerator() |
+          Sort-Object Value -Descending |
+          ForEach-Object {
+             $line = " - {0}: {1} events" -f $_.Key, $_.Value
+             Write-Host $line -ForegroundColor White
+             Add-Content -Path $logFile -Value $line
+        }
+    }
+
     Write-Host ""
     Add-Content -Path $logFile -Value ""
+
+    ## Outage event summary
 
     if ($outageEvents.Count -gt 0) {
         Write-Host "Outage Breakdown:" -ForegroundColor Magenta
